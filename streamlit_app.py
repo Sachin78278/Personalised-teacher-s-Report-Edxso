@@ -668,31 +668,81 @@ if pre_file and post_file:
             teachers_only_pre = pre_teachers - post_teachers
             teachers_only_post = post_teachers - pre_teachers
             
-            st.markdown("---")
-            st.subheader("📊 Assessment Summary")
+            teacher_param = st.query_params.get("teacher")
+            if teacher_param and teacher_param in teachers_both:
+                # Show single teacher report
+                teacher_name = teacher_param
+                pre_score, _ = calculate_score(pre_assessments[teacher_name], "pre_assessment")
+                post_score, _ = calculate_score(post_assessments[teacher_name], "post_assessment")
+                
+                st.markdown("---")
+                st.subheader(f"📊 Report for {teacher_name}")
+                
+                # Show individual scores
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Pre-Assessment Score", f"{pre_score}/12")
+                with col2:
+                    st.metric("Post-Assessment Score", f"{post_score}/12")
+                with col3:
+                    st.metric("Improvement", f"{post_score - pre_score} points")
+                
+                # Show gauge charts
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.plotly_chart(create_performance_gauge(pre_score), use_container_width=True, key=f"gauge_pre_{teacher_name}")
+                with col2:
+                    st.plotly_chart(create_performance_gauge(post_score), use_container_width=True, key=f"gauge_post_{teacher_name}")
+                
+                # Generate AI analysis
+                with st.spinner(f"Generating detailed report for {teacher_name}..."):
+                    report = generate_gemini_report(
+                        teacher_name, 
+                        pre_assessments[teacher_name], 
+                        post_assessments[teacher_name],
+                        pre_score,
+                        post_score
+                    )
+                    st.markdown(report)
+                
+                # Option to download report
+                download_content = f"Teacher Assessment Report\n{'='*60}\n\nTeacher: {teacher_name}\n"
+                download_content += f"Pre-Assessment Score: {pre_score}/12\nPost-Assessment Score: {post_score}/12\n"
+                download_content += f"Improvement: {post_score - pre_score} points\n\n"
+                download_content += f"Detailed Analysis:\n{report}"
+                
+                st.download_button(
+                    label="📥 Download Report",
+                    data=download_content,
+                    file_name=f"{teacher_name}_assessment_report.txt",
+                    mime="text/plain"
+                )
+                
+            else:
+                # Show full app
+                st.markdown("---")
+                st.subheader("📊 Assessment Summary")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Pre-Assessment Teachers", len(pre_teachers))
+                with col2:
+                    st.metric("Post-Assessment Teachers", len(post_teachers))
+                with col3:
+                    st.metric("Both Assessments", len(teachers_both))
+                with col4:
+                    st.metric("Incomplete", len(teachers_only_pre) + len(teachers_only_post))
             
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Pre-Assessment Teachers", len(pre_teachers))
-            with col2:
-                st.metric("Post-Assessment Teachers", len(post_teachers))
-            with col3:
-                st.metric("Both Assessments", len(teachers_both))
-            with col4:
-                st.metric("Incomplete", len(teachers_only_pre) + len(teachers_only_post))
-            
-            # Calculate scores for all teachers
-            scores_data = {}
-            for teacher in teachers_both:
-                pre_score, _ = calculate_score(pre_assessments[teacher], "pre_assessment")
-                post_score, _ = calculate_score(post_assessments[teacher], "post_assessment")
-                scores_data[teacher] = {
-                    "pre_score": pre_score,
-                    "post_score": post_score,
-                    "improvement": post_score - pre_score
-                }
-            
-            # Show score comparison visualizations
+                # Calculate scores for all teachers
+                scores_data = {}
+                for teacher in teachers_both:
+                    pre_score, _ = calculate_score(pre_assessments[teacher], "pre_assessment")
+                    post_score, _ = calculate_score(post_assessments[teacher], "post_assessment")
+                    scores_data[teacher] = {
+                        "pre_score": pre_score,
+                        "post_score": post_score,
+                        "improvement": post_score - pre_score
+                    }
             st.markdown("---")
             st.subheader("📈 Score Analysis")
             
@@ -796,20 +846,31 @@ if pre_file and post_file:
                             file_name=f"{teacher_name}_assessment_report.txt",
                             mime="text/plain"
                         )
-            
-            # Show incomplete assessments
-            st.markdown("---")
-            st.subheader("⚠️ Incomplete Assessments")
-            
-            if teachers_only_pre:
-                st.warning(f"**Teachers who completed Pre-Assessment but not Post-Assessment ({len(teachers_only_pre)}):**")
-                for teacher in sorted(teachers_only_pre):
-                    st.write(f"• {teacher}")
-            
-            if teachers_only_post:
-                st.warning(f"**Teachers who completed Post-Assessment but not Pre-Assessment ({len(teachers_only_post)}):**")
-                for teacher in sorted(teachers_only_post):
-                    st.write(f"• {teacher}")
+                
+                # Shareable Links
+                st.markdown("---")
+                st.subheader("🔗 Shareable Links")
+                base_url = st.text_input("Enter your deployed app URL (e.g., https://yourapp.streamlit.app)", value="https://your-app-name.streamlit.app")
+                if base_url:
+                    st.write("Copy these links to share individual reports:")
+                    for teacher in teacher_list:
+                        safe_name = teacher.replace(' ', '%20').replace('&', '%26')
+                        link = f"{base_url}/?teacher={safe_name}"
+                        st.code(link, language="text")
+                
+                # Show incomplete assessments
+                st.markdown("---")
+                st.subheader("⚠️ Incomplete Assessments")
+                
+                if teachers_only_pre:
+                    st.warning(f"**Teachers who completed Pre-Assessment but not Post-Assessment ({len(teachers_only_pre)}):**")
+                    for teacher in sorted(teachers_only_pre):
+                        st.write(f"• {teacher}")
+                
+                if teachers_only_post:
+                    st.warning(f"**Teachers who completed Post-Assessment but not Pre-Assessment ({len(teachers_only_post)}):**")
+                    for teacher in sorted(teachers_only_post):
+                        st.write(f"• {teacher}")
         else:
             st.error("Unable to extract data from CSV files. Please ensure the data includes teacher names and 12 question responses.")
     else:
