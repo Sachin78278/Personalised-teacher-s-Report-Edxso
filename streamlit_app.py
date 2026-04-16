@@ -732,44 +732,6 @@ if pre_file and post_file:
             if not initialize_gemini():
                 st.stop()
             
-            # AI Executive Cohort Report
-            st.markdown("---")
-            st.subheader("🤖 AI Executive Cohort Report")
-            st.write("Generate a comprehensive macro-level report for stakeholders based on the global statistics.")
-            
-            if st.button("Generate Executive Report", type="primary"):
-                with st.spinner("Analyzing cohort data and generating report..."):
-                    total_teachers = len(teachers_both)
-                    pre_pct_list = []
-                    post_pct_list = []
-                    pre_key = ANSWER_KEYS["pre_assessment"]
-                    post_key = ANSWER_KEYS["post_assessment"]
-                    
-                    for q_num in range(1, 13):
-                        pre_c = sum(1 for t in teachers_both if normalize_answer_text(pre_assessments[t].get(q_num, ""), q_num, "pre_assessment") == pre_key.get(q_num))
-                        post_c = sum(1 for t in teachers_both if normalize_answer_text(post_assessments[t].get(q_num, ""), q_num, "post_assessment") == post_key.get(q_num))
-                        pre_pct_list.append((pre_c / total_teachers) * 100 if total_teachers > 0 else 0)
-                        post_pct_list.append((post_c / total_teachers) * 100 if total_teachers > 0 else 0)
-
-                    cohort_report = generate_gemini_cohort_report(
-                        total_teachers, 
-                        np.mean(pre_scores_list), 
-                        np.mean(post_scores_list), 
-                        np.mean(improvements_list),
-                        pre_pct_list,
-                        post_pct_list
-                    )
-                    
-                    st.info("Report Generated Successfully!")
-                    st.markdown(cohort_report)
-                    
-                    st.download_button(
-                        label="📥 Download Executive Report",
-                        data=cohort_report,
-                        file_name="executive_cohort_report.txt",
-                        mime="text/plain"
-                    )
-
             st.markdown("---")
             
             # Generate reports for teachers with both assessments
